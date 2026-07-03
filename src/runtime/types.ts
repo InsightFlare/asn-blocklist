@@ -1,6 +1,15 @@
 export type ASNInput = number | `AS${number}` | string;
-export type ASNClass = "hosting" | "access" | "unknown";
-export type ASNListKind = "hosting" | "access";
+export type ASNClass =
+  | "hosting"
+  | "network_service"
+  | "transit"
+  | "access"
+  | "unknown";
+export type ASNListKind =
+  | "hosting"
+  | "network_service"
+  | "transit"
+  | "access";
 export type ASNEncoding = "gr" | "ef";
 
 export interface ASNSetMetadata {

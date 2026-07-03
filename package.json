@@ -1,7 +1,7 @@
 {
   "name": "asn-blocklist",
   "version": "1.20260703.2",
-  "description": "Auto-updated ASN blocklist and access-network list from PeeringDB",
+  "description": "Auto-updated ASN classifier from PeeringDB",
   "type": "module",
   "main": "./lib/index.cjs",
   "module": "./lib/index.js",
@@ -27,6 +27,26 @@
       "import": "./lib/hosting/gr.js",
       "require": "./lib/hosting/gr.cjs"
     },
+    "./network-service/ef": {
+      "types": "./lib/network-service/ef.d.ts",
+      "import": "./lib/network-service/ef.js",
+      "require": "./lib/network-service/ef.cjs"
+    },
+    "./network-service/gr": {
+      "types": "./lib/network-service/gr.d.ts",
+      "import": "./lib/network-service/gr.js",
+      "require": "./lib/network-service/gr.cjs"
+    },
+    "./transit/ef": {
+      "types": "./lib/transit/ef.d.ts",
+      "import": "./lib/transit/ef.js",
+      "require": "./lib/transit/ef.cjs"
+    },
+    "./transit/gr": {
+      "types": "./lib/transit/gr.d.ts",
+      "import": "./lib/transit/gr.js",
+      "require": "./lib/transit/gr.cjs"
+    },
     "./access/ef": {
       "types": "./lib/access/ef.d.ts",
       "import": "./lib/access/ef.js",
@@ -46,6 +66,26 @@
       "types": "./lib/data/hosting-gr.d.ts",
       "import": "./lib/data/hosting-gr.js",
       "require": "./lib/data/hosting-gr.cjs"
+    },
+    "./data/network-service-ef": {
+      "types": "./lib/data/network-service-ef.d.ts",
+      "import": "./lib/data/network-service-ef.js",
+      "require": "./lib/data/network-service-ef.cjs"
+    },
+    "./data/network-service-gr": {
+      "types": "./lib/data/network-service-gr.d.ts",
+      "import": "./lib/data/network-service-gr.js",
+      "require": "./lib/data/network-service-gr.cjs"
+    },
+    "./data/transit-ef": {
+      "types": "./lib/data/transit-ef.d.ts",
+      "import": "./lib/data/transit-ef.js",
+      "require": "./lib/data/transit-ef.cjs"
+    },
+    "./data/transit-gr": {
+      "types": "./lib/data/transit-gr.d.ts",
+      "import": "./lib/data/transit-gr.js",
+      "require": "./lib/data/transit-gr.cjs"
     },
     "./data/access-ef": {
       "types": "./lib/data/access-ef.d.ts",

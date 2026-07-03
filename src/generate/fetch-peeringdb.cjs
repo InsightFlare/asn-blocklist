@@ -1,7 +1,23 @@
 const PEERINGDB_API = "https://www.peeringdb.com/api/net";
 
 async function fetchPage(skip, limit, retries = 3) {
-  const url = `${PEERINGDB_API}?depth=0&limit=${limit}&skip=${skip}&fields=asn,info_type`;
+  const fields = [
+    "asn",
+    "info_type",
+    "info_types",
+    "info_prefixes4",
+    "info_prefixes6",
+    "info_traffic",
+    "info_ratio",
+    "info_scope",
+    "ix_count",
+    "fac_count",
+    "policy_general",
+    "policy_locations",
+    "policy_ratio",
+    "policy_contracts",
+  ].join(",");
+  const url = `${PEERINGDB_API}?depth=0&limit=${limit}&skip=${skip}&fields=${fields}`;
 
   for (let attempt = 0; attempt < retries; attempt++) {
     const resp = await fetch(url);

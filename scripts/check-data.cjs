@@ -2,7 +2,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const DIST = path.join(__dirname, "..", "dist");
-const MIN_HOSTING = 5000;
+const MIN_HOSTING = 1000;
+const MIN_NETWORK_SERVICE = 1000;
+const MIN_TRANSIT = 100;
 const MIN_ACCESS = 10000;
 
 function readASNs(file) {
@@ -38,16 +40,35 @@ function assertList(name, asns, minCount) {
 
 function main() {
   const hosting = readASNs("hosting.txt");
-  const access = readASNs("consumer.txt");
-  const hostingSet = assertList("hosting", hosting, MIN_HOSTING);
-  assertList("access", access, MIN_ACCESS);
+  const networkService = readASNs("network-service.txt");
+  const transit = readASNs("transit.txt");
+  const access = readASNs("access.txt");
+  const lists = [
+    ["hosting", hosting, MIN_HOSTING],
+    ["network-service", networkService, MIN_NETWORK_SERVICE],
+    ["transit", transit, MIN_TRANSIT],
+    ["access", access, MIN_ACCESS],
+  ];
+  const sets = lists.map(([name, asns, minCount]) => [
+    name,
+    assertList(name, asns, minCount),
+  ]);
 
-  const overlap = access.filter((asn) => hostingSet.has(asn));
-  if (overlap.length > 0) {
-    throw new Error(`hosting/access lists overlap, first overlap: AS${overlap[0]}`);
+  for (let leftIndex = 0; leftIndex < sets.length; leftIndex++) {
+    for (let rightIndex = leftIndex + 1; rightIndex < sets.length; rightIndex++) {
+      const [leftName, leftSet] = sets[leftIndex];
+      const [rightName, rightSet] = sets[rightIndex];
+      for (const asn of leftSet) {
+        if (rightSet.has(asn)) {
+          throw new Error(`${leftName}/${rightName} lists overlap, first overlap: AS${asn}`);
+        }
+      }
+    }
   }
 
-  console.log(`Data checks passed: hosting=${hosting.length}, access=${access.length}`);
+  console.log(
+    `Data checks passed: hosting=${hosting.length}, network-service=${networkService.length}, transit=${transit.length}, access=${access.length}`,
+  );
 }
 
 main();

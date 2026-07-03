@@ -25,7 +25,7 @@ function readHeader(filename) {
 }
 
 function dataDateFromVersion(version) {
-  const [, yyyymmdd] = /^(\d+)\.(\d{8})\.(\d+)$/.exec(version) || [];
+  const [, , yyyymmdd] = /^(\d+)\.(\d{8})\.(\d+)$/.exec(version) || [];
   if (!yyyymmdd) return new Date().toISOString().slice(0, 10);
   return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
 }
@@ -57,26 +57,52 @@ function main() {
   const pkg = readPackage();
   fs.mkdirSync(GENERATED, { recursive: true });
 
-  const hostingGR = readHeader("hosting.gr.b64");
-  const hostingEF = readHeader("hosting.ef.b64");
-  const accessGR = readHeader("consumer.gr.b64");
-  const accessEF = readHeader("consumer.ef.b64");
+  const definitions = [
+    { kind: "hosting", file: "hosting", constant: "HOSTING" },
+    {
+      kind: "network_service",
+      file: "network-service",
+      constant: "NETWORK_SERVICE",
+    },
+    { kind: "transit", file: "transit", constant: "TRANSIT" },
+    { kind: "access", file: "access", constant: "ACCESS" },
+  ];
+  const datasets = {};
 
-  writeModule("hosting-gr.ts", "HOSTING_GR_B64", hostingGR.b64);
-  writeModule("hosting-ef.ts", "HOSTING_EF_B64", hostingEF.b64);
-  writeModule("access-gr.ts", "ACCESS_GR_B64", accessGR.b64);
-  writeModule("access-ef.ts", "ACCESS_EF_B64", accessEF.b64);
+  for (const definition of definitions) {
+    const gr = readHeader(`${definition.file}.gr.b64`);
+    const ef = readHeader(`${definition.file}.ef.b64`);
+    writeModule(
+      `${definition.file}-gr.ts`,
+      `${definition.constant}_GR_B64`,
+      gr.b64,
+    );
+    writeModule(
+      `${definition.file}-ef.ts`,
+      `${definition.constant}_EF_B64`,
+      ef.b64,
+    );
+    datasets[`${definition.file.replace(/-([a-z])/g, (_, c) => c.toUpperCase())}GR`] =
+      datasetMetadata(
+        definition.kind,
+        "gr",
+        gr,
+        `dist/${definition.file}.gr.b64`,
+      );
+    datasets[`${definition.file.replace(/-([a-z])/g, (_, c) => c.toUpperCase())}EF`] =
+      datasetMetadata(
+        definition.kind,
+        "ef",
+        ef,
+        `dist/${definition.file}.ef.b64`,
+      );
+  }
 
   const metadata = {
     dataVersion: dataDateFromVersion(pkg.version),
     formatVersion: FORMAT_VERSION,
     packageVersion: pkg.version,
-    datasets: {
-      hostingGR: datasetMetadata("hosting", "gr", hostingGR, "dist/hosting.gr.b64"),
-      hostingEF: datasetMetadata("hosting", "ef", hostingEF, "dist/hosting.ef.b64"),
-      accessGR: datasetMetadata("access", "gr", accessGR, "dist/consumer.gr.b64"),
-      accessEF: datasetMetadata("access", "ef", accessEF, "dist/consumer.ef.b64"),
-    },
+    datasets,
   };
 
   fs.writeFileSync(

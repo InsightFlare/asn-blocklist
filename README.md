@@ -1,39 +1,59 @@
 # asn-blocklist
 
-An auto-maintained ASN blocklist and allowlist generated from the [PeeringDB](https://www.peeringdb.com/) community database. Designed for web analytics tools to identify, tag, or filter hosting/datacenter traffic separately from access-network traffic.
+An auto-maintained ASN classifier generated from the [PeeringDB](https://www.peeringdb.com/) community database. Designed for web analytics tools to identify and tag hosting, network-service, transit/carrier, and access-network traffic.
 
-## What are ASN blocklists and allowlists?
+## What are ASN classifications?
 
 Every network on the internet has a unique ASN (Autonomous System Number). By classifying ASNs, we can distinguish:
 
-- **Hosting/Cloud (blocklist)**: Data centers and cloud providers like DigitalOcean, AWS, Vultr. Traffic from these ASNs is disproportionately likely to be bots, scrapers, monitoring systems, or automated scripts.
-- **Consumer ISPs (allowlist)**: Residential broadband providers like Deutsche Telekom, BT, Comcast. Real users connect through these networks.
+- **Hosting/Cloud**: Data centers and cloud providers like DigitalOcean, AWS, Vultr. Traffic from these ASNs is disproportionately likely to be bots, scrapers, monitoring systems, or automated scripts.
+- **Network services**: DDoS protection, VPN/proxy, managed network, and smaller NSP networks. These are useful risk signals, but not equivalent to hosting.
+- **Transit/carrier**: Large NSP/backbone and carrier networks. These should not be treated as bot traffic on ASN alone.
+- **Access networks**: Residential broadband, mobile, enterprise, education, nonprofit, and government networks.
 
-PeeringDB is the de-facto standard database for network interconnection. Each network operator self-reports an `info_type`. This repository pulls PeeringDB weekly, classifies every network, and generates both blocklists and allowlists.
+PeeringDB is the de-facto standard database for network interconnection. Each network operator self-reports structured fields such as `info_type`, `info_types`, prefixes, traffic, scope, and policy. This repository pulls PeeringDB weekly, classifies every network, and generates compact datasets for each class.
 
 ## Files
 
-### Blocklist (hosting / cloud / datacenter)
+### Hosting / cloud / datacenter
 
-PeeringDB `info_type` in `{NSP, Content, Network Services}`.
+PeeringDB `Content` networks.
 
 | File | Format | Description |
 |------|--------|-------------|
 | [`hosting.txt`](dist/hosting.txt) | Plain text, one `AS12345` per line | Human review, grep, direct inclusion |
-| [`hosting.gr.b64`](dist/hosting.gr.b64) | Base64, Golomb-Rice(k=4) compressed gaps | Smallest embedding (~<!-- SIZE:hosting.gr.b64 -->9.8KB<!-- /SIZE -->). One-time decode to bitmap at init, then O(1) lookup |
-| [`hosting.ef.b64`](dist/hosting.ef.b64) | Base64, Elias-Fano + select index | No bitmap expansion needed (~<!-- SIZE:hosting.ef.b64 -->9.8KB<!-- /SIZE -->). Query directly on the compressed data |
+| [`hosting.gr.b64`](dist/hosting.gr.b64) | Base64, Golomb-Rice(k=4) compressed gaps | Small embedding. One-time decode to bitmap at init, then O(1) lookup |
+| [`hosting.ef.b64`](dist/hosting.ef.b64) | Base64, Elias-Fano + select index | Query directly on the compressed data |
+
+### Network service networks
+
+PeeringDB `Network Services` networks and non-transit `NSP` networks.
+
+| File | Format | Description |
+|------|--------|-------------|
+| [`network-service.txt`](dist/network-service.txt) | Plain text, one `AS12345` per line | Human review, grep |
+| [`network-service.gr.b64`](dist/network-service.gr.b64) | Base64, Golomb-Rice(k=4) compressed gaps | Small embedding. One-time decode to bitmap at init, then O(1) lookup |
+| [`network-service.ef.b64`](dist/network-service.ef.b64) | Base64, Elias-Fano + select index | Query directly on the compressed data |
+
+### Transit / carrier networks
+
+Large PeeringDB `NSP` networks detected from structured scale signals such as advertised traffic and prefix counts.
+
+| File | Format | Description |
+|------|--------|-------------|
+| [`transit.txt`](dist/transit.txt) | Plain text, one `AS12345` per line | Human review, grep |
+| [`transit.gr.b64`](dist/transit.gr.b64) | Base64, Golomb-Rice(k=4) compressed gaps | Small embedding. One-time decode to bitmap at init, then O(1) lookup |
+| [`transit.ef.b64`](dist/transit.ef.b64) | Base64, Elias-Fano + select index | Query directly on the compressed data |
 
 ### Access / non-hosting networks
 
 PeeringDB `info_type` in `{Cable/DSL/ISP, Enterprise, Educational/Research, Non-Profit, Government}`.
 
-> The "consumer" list is not strictly residential-only. It includes non-hosting networks such as enterprise, education, nonprofit, and government networks. The name reflects the primary use case (distinguishing consumer-facing traffic from hosting infrastructure) rather than an exhaustive categorization.
-
 | File | Format | Description |
 |------|--------|-------------|
-| [`consumer.txt`](dist/consumer.txt) | Plain text, one `AS12345` per line | Human review, grep |
-| [`consumer.gr.b64`](dist/consumer.gr.b64) | Base64, Golomb-Rice(k=4) compressed gaps | Same format as hosting, ~<!-- SIZE:consumer.gr.b64 -->16.6KB<!-- /SIZE --> |
-| [`consumer.ef.b64`](dist/consumer.ef.b64) | Base64, Elias-Fano + select index | Same format as hosting, ~<!-- SIZE:consumer.ef.b64 -->18.0KB<!-- /SIZE --> |
+| [`access.txt`](dist/access.txt) | Plain text, one `AS12345` per line | Human review, grep |
+| [`access.gr.b64`](dist/access.gr.b64) | Base64, Golomb-Rice(k=4) compressed gaps | Same format as hosting |
+| [`access.ef.b64`](dist/access.ef.b64) | Base64, Elias-Fano + select index | Same format as hosting |
 
 ## Choosing an encoding
 
@@ -45,10 +65,8 @@ Use the npm package default (`asn-blocklist`) unless you have a specific size or
 | Golomb-Rice (`.gr.b64`) | Small embedded payloads where one-time initialization is fine | Stores sorted ASN gaps with fixed `k=4`; smallest or near-smallest Base64 payload for these lists | Must decode sequentially at startup; the runtime expands it to a compact bitmap for O(1) lookups |
 | Elias-Fano (`.ef.b64`) | Serverless, edge, and SDK usage where cold-start expansion should be minimal | Stores high/low bits plus a select index; queries the compressed structure directly | Slightly larger than GR for some lists; lookup does a bounded bucket scan rather than a full bitmap check |
 
-Rule of thumb:
-
-- Use `asn-blocklist` or `/hosting/ef` and `/access/ef` for application code.
-- Use `/hosting/gr` or `/access/gr` when bundle size matters more than startup decode work.
+- Use `asn-blocklist` or `/*/ef` subpath imports for application code.
+- Use `/*/gr` subpath imports when bundle size matters more than startup decode work.
 - Use `.txt` files when humans or operations tooling need to inspect the data.
 
 ## Usage
@@ -62,11 +80,19 @@ npm install asn-blocklist
 The default entry loads the EF datasets and exposes high-level classification helpers:
 
 ```js
-import { classifyASN, isHostingASN, isAccessASN } from "asn-blocklist";
+import {
+  classifyASN,
+  isAccessASN,
+  isHostingASN,
+  isNetworkServiceASN,
+  isTransitASN,
+} from "asn-blocklist";
 
-classifyASN(14061);      // "hosting" | "access" | "unknown"
-classifyASN("AS7922");   // "hosting" | "access" | "unknown"
+classifyASN(14061);      // "hosting" | "network_service" | "transit" | "access" | "unknown"
+classifyASN("AS4134");   // "transit"
 isHostingASN("AS14061"); // boolean
+isNetworkServiceASN(9009); // boolean
+isTransitASN("AS4134");  // boolean
 isAccessASN(7922);       // boolean
 ```
 
@@ -74,6 +100,8 @@ Use subpath imports when you only need one list or one encoding:
 
 ```js
 import { isHostingASN } from "asn-blocklist/hosting/ef";
+import { isNetworkServiceASN } from "asn-blocklist/network-service/ef";
+import { isTransitASN } from "asn-blocklist/transit/ef";
 import { isAccessASN } from "asn-blocklist/access/gr";
 ```
 
@@ -95,10 +123,18 @@ Public entry points:
 | `asn-blocklist/runtime` | GR / EF parsers and generic classification helpers |
 | `asn-blocklist/hosting/ef` | Hosting EF set and `isHostingASN` |
 | `asn-blocklist/hosting/gr` | Hosting GR set and `isHostingASN` |
+| `asn-blocklist/network-service/ef` | Network-service EF set and `isNetworkServiceASN` |
+| `asn-blocklist/network-service/gr` | Network-service GR set and `isNetworkServiceASN` |
+| `asn-blocklist/transit/ef` | Transit EF set and `isTransitASN` |
+| `asn-blocklist/transit/gr` | Transit GR set and `isTransitASN` |
 | `asn-blocklist/access/ef` | Access EF set and `isAccessASN` |
 | `asn-blocklist/access/gr` | Access GR set and `isAccessASN` |
 | `asn-blocklist/data/hosting-ef` | Raw hosting EF Base64 constant |
 | `asn-blocklist/data/hosting-gr` | Raw hosting GR Base64 constant |
+| `asn-blocklist/data/network-service-ef` | Raw network-service EF Base64 constant |
+| `asn-blocklist/data/network-service-gr` | Raw network-service GR Base64 constant |
+| `asn-blocklist/data/transit-ef` | Raw transit EF Base64 constant |
+| `asn-blocklist/data/transit-gr` | Raw transit GR Base64 constant |
 | `asn-blocklist/data/access-ef` | Raw access EF Base64 constant |
 | `asn-blocklist/data/access-gr` | Raw access GR Base64 constant |
 
@@ -136,7 +172,7 @@ The EF format has its own sub-header at the start of the payload, followed by th
 ### Plain text
 
 ```bash
-# Check if an ASN is in the blocklist
+# Check if an ASN is in the hosting class
 grep "^AS14061$" dist/hosting.txt
 ```
 
@@ -274,11 +310,11 @@ Example: `1.20260703.0`.
 
 ### Important caveat
 
-ASN classification is a strong signal, not an absolute judgment. Hosting ASNs occasionally carry legitimate traffic (corporate VPNs, monitoring services, RSS readers), and consumer ISPs sometimes carry bot traffic (residential proxies, infected devices). We recommend **tagging** traffic rather than **dropping** it:
+ASN classification is a strong signal, not an absolute judgment. Hosting and network-service ASNs occasionally carry legitimate traffic (corporate VPNs, monitoring services, RSS readers), and access/transit networks sometimes carry bot traffic (residential proxies, infected devices). We recommend **tagging** traffic rather than **dropping** it:
 
 ```js
 // Prefer classification over binary filtering
-const type = classifyASN(asn); // "hosting" | "access" | "unknown"
+const type = classifyASN(asn); // "hosting" | "network_service" | "transit" | "access" | "unknown"
 // Use as a signal in your analytics pipeline, not as a hard firewall rule
 ```
 
@@ -286,14 +322,14 @@ const type = classifyASN(asn); // "hosting" | "access" | "unknown"
 
 | PeeringDB `info_type` | List | Description |
 |------|:--:|------|
-| NSP | Blocklist | Network service providers (transit/hosting/colo) |
-| Content | Blocklist | CDN/cloud/content networks |
-| Network Services | Blocklist | DDoS protection/anycast services |
-| Cable/DSL/ISP | Allowlist | Residential broadband ISPs |
-| Enterprise | Allowlist | Corporate networks |
-| Educational/Research | Allowlist | Universities and research networks |
-| Non-Profit | Allowlist | Non-profit organizations |
-| Government | Allowlist | Government networks |
+| NSP | transit or network_service | Large NSPs are split into transit; smaller NSPs become network_service |
+| Content | hosting | CDN/cloud/content networks |
+| Network Services | network_service | DDoS protection/anycast/proxy/network services |
+| Cable/DSL/ISP | access | Residential broadband ISPs |
+| Enterprise | access | Corporate networks |
+| Educational/Research | access | Universities and research networks |
+| Non-Profit | access | Non-profit organizations |
+| Government | access | Government networks |
 | Route Server / Collector | Ignored | Routing infrastructure |
 | (unclassified) | Ignored | Conservative: allow through |
 
