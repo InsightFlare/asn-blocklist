@@ -20,8 +20,8 @@ PeeringDB `info_type` in `{NSP, Content, Network Services}`.
 | File | Format | Description |
 |------|--------|-------------|
 | [`hosting.txt`](dist/hosting.txt) | Plain text, one `AS12345` per line | Human review, grep, direct inclusion |
-| [`hosting.gr.b64`](dist/hosting.gr.b64) | Base64, Golomb-Rice(k=4) compressed gaps | Smallest embedding (~<!-- SIZE:hosting.gr.b64 -->--<!-- /SIZE -->). One-time decode to bitmap at init, then O(1) lookup |
-| [`hosting.ef.b64`](dist/hosting.ef.b64) | Base64, Elias-Fano + select index | No bitmap expansion needed (~<!-- SIZE:hosting.ef.b64 -->--<!-- /SIZE -->). Query directly on the compressed data, O(1) |
+| [`hosting.gr.b64`](dist/hosting.gr.b64) | Base64, Golomb-Rice(k=4) compressed gaps | Smallest embedding (~<!-- SIZE:hosting.gr.b64 -->9.8KB<!-- /SIZE -->). One-time decode to bitmap at init, then O(1) lookup |
+| [`hosting.ef.b64`](dist/hosting.ef.b64) | Base64, Elias-Fano + select index | No bitmap expansion needed (~<!-- SIZE:hosting.ef.b64 -->9.8KB<!-- /SIZE -->). Query directly on the compressed data, O(1) |
 
 ### Access / non-hosting networks
 
@@ -32,8 +32,8 @@ PeeringDB `info_type` in `{Cable/DSL/ISP, Enterprise, Educational/Research, Non-
 | File | Format | Description |
 |------|--------|-------------|
 | [`consumer.txt`](dist/consumer.txt) | Plain text, one `AS12345` per line | Human review, grep |
-| [`consumer.gr.b64`](dist/consumer.gr.b64) | Base64, Golomb-Rice(k=4) compressed gaps | Same format as hosting, ~<!-- SIZE:consumer.gr.b64 -->--<!-- /SIZE --> |
-| [`consumer.ef.b64`](dist/consumer.ef.b64) | Base64, Elias-Fano + select index | Same format as hosting, ~<!-- SIZE:consumer.ef.b64 -->--<!-- /SIZE --> |
+| [`consumer.gr.b64`](dist/consumer.gr.b64) | Base64, Golomb-Rice(k=4) compressed gaps | Same format as hosting, ~<!-- SIZE:consumer.gr.b64 -->16.6KB<!-- /SIZE --> |
+| [`consumer.ef.b64`](dist/consumer.ef.b64) | Base64, Elias-Fano + select index | Same format as hosting, ~<!-- SIZE:consumer.ef.b64 -->18.0KB<!-- /SIZE --> |
 
 ## Usage
 
