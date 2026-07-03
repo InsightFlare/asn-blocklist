@@ -1,6 +1,6 @@
 {
   "name": "asn-blocklist",
-  "version": "1.20260703.2",
+  "version": "1.20260703.3",
   "description": "Auto-updated ASN classifier from PeeringDB",
   "type": "module",
   "main": "./lib/index.cjs",
