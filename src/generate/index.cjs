@@ -1,10 +1,10 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const { fetchAllNetworks } = require("./fetch-peeringdb");
-const { encodeGR } = require("./gr-encode");
-const { encodeEF } = require("./ef-encode");
+const { fetchAllNetworks } = require("./fetch-peeringdb.cjs");
+const { encodeGR } = require("./gr-encode.cjs");
+const { encodeEF } = require("./ef-encode.cjs");
 
-const DIST = path.join(__dirname, "..", "dist");
+const DIST = path.join(__dirname, "..", "..", "dist");
 
 const BLOCKLIST_TYPES = new Set(["NSP", "Content", "Network Services"]);
 const ALLOWLIST_TYPES = new Set([

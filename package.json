@@ -1,10 +1,109 @@
 {
   "name": "asn-blocklist",
-  "version": "1.0.0",
+  "version": "1.20260703.0",
   "description": "Auto-updated ASN blocklist and access-network list from PeeringDB",
-  "private": true,
-  "scripts": {
-    "generate": "node src/index.js"
+  "type": "module",
+  "main": "./lib/index.cjs",
+  "module": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./lib/index.js",
+      "require": "./lib/index.cjs"
+    },
+    "./runtime": {
+      "types": "./lib/runtime.d.ts",
+      "import": "./lib/runtime.js",
+      "require": "./lib/runtime.cjs"
+    },
+    "./hosting/ef": {
+      "types": "./lib/hosting/ef.d.ts",
+      "import": "./lib/hosting/ef.js",
+      "require": "./lib/hosting/ef.cjs"
+    },
+    "./hosting/gr": {
+      "types": "./lib/hosting/gr.d.ts",
+      "import": "./lib/hosting/gr.js",
+      "require": "./lib/hosting/gr.cjs"
+    },
+    "./access/ef": {
+      "types": "./lib/access/ef.d.ts",
+      "import": "./lib/access/ef.js",
+      "require": "./lib/access/ef.cjs"
+    },
+    "./access/gr": {
+      "types": "./lib/access/gr.d.ts",
+      "import": "./lib/access/gr.js",
+      "require": "./lib/access/gr.cjs"
+    },
+    "./data/hosting-ef": {
+      "types": "./lib/data/hosting-ef.d.ts",
+      "import": "./lib/data/hosting-ef.js",
+      "require": "./lib/data/hosting-ef.cjs"
+    },
+    "./data/hosting-gr": {
+      "types": "./lib/data/hosting-gr.d.ts",
+      "import": "./lib/data/hosting-gr.js",
+      "require": "./lib/data/hosting-gr.cjs"
+    },
+    "./data/access-ef": {
+      "types": "./lib/data/access-ef.d.ts",
+      "import": "./lib/data/access-ef.js",
+      "require": "./lib/data/access-ef.cjs"
+    },
+    "./data/access-gr": {
+      "types": "./lib/data/access-gr.d.ts",
+      "import": "./lib/data/access-gr.js",
+      "require": "./lib/data/access-gr.cjs"
+    },
+    "./package.json": "./package.json"
   },
-  "license": "MIT"
+  "files": [
+    "lib",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "generate": "node src/generate/index.cjs",
+    "generate:modules": "node scripts/generate-modules.cjs",
+    "build": "npm run generate:modules && tsup",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "prepack": "npm run build",
+    "update:sizes": "node scripts/update-sizes.cjs",
+    "set-version": "node scripts/set-version.cjs",
+    "check:data": "node scripts/check-data.cjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/InsightFlare/asn-blocklist.git"
+  },
+  "bugs": {
+    "url": "https://github.com/InsightFlare/asn-blocklist/issues"
+  },
+  "homepage": "https://github.com/InsightFlare/asn-blocklist#readme",
+  "keywords": [
+    "asn",
+    "autonomous-system",
+    "blocklist",
+    "datacenter",
+    "hosting",
+    "peeringdb",
+    "bot-detection",
+    "analytics"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.0.10",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.3"
+  },
+  "overrides": {
+    "esbuild": "^0.28.1"
+  }
 }

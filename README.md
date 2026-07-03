@@ -21,7 +21,7 @@ PeeringDB `info_type` in `{NSP, Content, Network Services}`.
 |------|--------|-------------|
 | [`hosting.txt`](dist/hosting.txt) | Plain text, one `AS12345` per line | Human review, grep, direct inclusion |
 | [`hosting.gr.b64`](dist/hosting.gr.b64) | Base64, Golomb-Rice(k=4) compressed gaps | Smallest embedding (~<!-- SIZE:hosting.gr.b64 -->9.8KB<!-- /SIZE -->). One-time decode to bitmap at init, then O(1) lookup |
-| [`hosting.ef.b64`](dist/hosting.ef.b64) | Base64, Elias-Fano + select index | No bitmap expansion needed (~<!-- SIZE:hosting.ef.b64 -->9.8KB<!-- /SIZE -->). Query directly on the compressed data, O(1) |
+| [`hosting.ef.b64`](dist/hosting.ef.b64) | Base64, Elias-Fano + select index | No bitmap expansion needed (~<!-- SIZE:hosting.ef.b64 -->9.8KB<!-- /SIZE -->). Query directly on the compressed data |
 
 ### Access / non-hosting networks
 
@@ -35,7 +35,74 @@ PeeringDB `info_type` in `{Cable/DSL/ISP, Enterprise, Educational/Research, Non-
 | [`consumer.gr.b64`](dist/consumer.gr.b64) | Base64, Golomb-Rice(k=4) compressed gaps | Same format as hosting, ~<!-- SIZE:consumer.gr.b64 -->16.6KB<!-- /SIZE --> |
 | [`consumer.ef.b64`](dist/consumer.ef.b64) | Base64, Elias-Fano + select index | Same format as hosting, ~<!-- SIZE:consumer.ef.b64 -->18.0KB<!-- /SIZE --> |
 
+## Choosing an encoding
+
+Use the npm package default (`asn-blocklist`) unless you have a specific size or cold-start constraint. The default entry uses EF datasets because they can be queried directly without expanding the whole set into a bitmap.
+
+| Format | Best for | Characteristics | Tradeoffs |
+|------|------|------|------|
+| Plain text (`.txt`) | Shell scripts, audits, human review, simple server-side loading | One `AS12345` per line; easy to diff, grep, and inspect | Largest format; consumers usually load it into a `Set` for fast lookup |
+| Golomb-Rice (`.gr.b64`) | Small embedded payloads where one-time initialization is fine | Stores sorted ASN gaps with fixed `k=4`; smallest or near-smallest Base64 payload for these lists | Must decode sequentially at startup; the runtime expands it to a compact bitmap for O(1) lookups |
+| Elias-Fano (`.ef.b64`) | Serverless, edge, and SDK usage where cold-start expansion should be minimal | Stores high/low bits plus a select index; queries the compressed structure directly | Slightly larger than GR for some lists; lookup does a bounded bucket scan rather than a full bitmap check |
+
+Rule of thumb:
+
+- Use `asn-blocklist` or `/hosting/ef` and `/access/ef` for application code.
+- Use `/hosting/gr` or `/access/gr` when bundle size matters more than startup decode work.
+- Use `.txt` files when humans or operations tooling need to inspect the data.
+
 ## Usage
+
+### npm package
+
+```bash
+npm install asn-blocklist
+```
+
+The default entry loads the EF datasets and exposes high-level classification helpers:
+
+```js
+import { classifyASN, isHostingASN, isAccessASN } from "asn-blocklist";
+
+classifyASN(14061);      // "hosting" | "access" | "unknown"
+classifyASN("AS7922");   // "hosting" | "access" | "unknown"
+isHostingASN("AS14061"); // boolean
+isAccessASN(7922);       // boolean
+```
+
+Use subpath imports when you only need one list or one encoding:
+
+```js
+import { isHostingASN } from "asn-blocklist/hosting/ef";
+import { isAccessASN } from "asn-blocklist/access/gr";
+```
+
+Use the runtime entry to load your own embedded or fetched dataset:
+
+```js
+import { createASNSet } from "asn-blocklist/runtime";
+import { HOSTING_EF_B64 } from "asn-blocklist/data/hosting-ef";
+
+const hosting = createASNSet(HOSTING_EF_B64, { kind: "hosting", encoding: "auto" });
+hosting.has("AS14061");
+```
+
+Public entry points:
+
+| Import | Description |
+|------|------|
+| `asn-blocklist` | Default EF-backed classifier and runtime exports |
+| `asn-blocklist/runtime` | GR / EF parsers and generic classification helpers |
+| `asn-blocklist/hosting/ef` | Hosting EF set and `isHostingASN` |
+| `asn-blocklist/hosting/gr` | Hosting GR set and `isHostingASN` |
+| `asn-blocklist/access/ef` | Access EF set and `isAccessASN` |
+| `asn-blocklist/access/gr` | Access GR set and `isAccessASN` |
+| `asn-blocklist/data/hosting-ef` | Raw hosting EF Base64 constant |
+| `asn-blocklist/data/hosting-gr` | Raw hosting GR Base64 constant |
+| `asn-blocklist/data/access-ef` | Raw access EF Base64 constant |
+| `asn-blocklist/data/access-gr` | Raw access GR Base64 constant |
+
+### Raw files
 
 All binary formats (`.gr.b64`, `.ef.b64`) share a common header:
 
@@ -194,6 +261,16 @@ function isBlocked(x) {
 
 - **Source**: [PeeringDB API](https://www.peeringdb.com/apidocs/), community-maintained by network operators worldwide
 - **Update frequency**: Weekly via GitHub Actions, auto-committed on changes
+
+## Versioning
+
+The npm package uses `MAJOR.YYYYMMDD.PATCH`.
+
+- `MAJOR`: runtime API and binary format compatibility.
+- `YYYYMMDD`: PeeringDB snapshot or generation date.
+- `PATCH`: same-day rebuild or generator/runtime fix.
+
+Example: `1.20260703.0`.
 
 ### Important caveat
 
