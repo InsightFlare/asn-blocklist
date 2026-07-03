@@ -1,20 +1,43 @@
 /**
- * Golomb-Rice (k=4) encoder.
- *
- * Produces a Base64 string with the common header followed by
- * bit-packed GR-encoded gaps.
- *
- * Common header (14 bytes):
- *   0..3   OFFSET  uint32 LE
- *   4..7   N       uint32 LE
- *   8..11  U       uint32 LE
- *   12     k       uint8
- *   13     l       uint8 (0 = unused)
- *   14..   GR-encoded gap bitstream
- *
- * TODO: implement proper GR bit-packing. Currently uses raw uint16 gaps
- * as a placeholder to enable end-to-end testing.
+ * Golomb-Rice (k=4) encoder producing bit-packed Base64 output.
  */
+
+class BitWriter {
+  constructor() {
+    this.bytes = [];
+    this.current = 0;
+    this.bitPos = 0;
+  }
+
+  writeBit(b) {
+    if (b) this.current |= (0x80 >> this.bitPos);
+    this.bitPos++;
+    if (this.bitPos === 8) {
+      this.bytes.push(this.current);
+      this.current = 0;
+      this.bitPos = 0;
+    }
+  }
+
+  writeBits(value, count) {
+    for (let i = count - 1; i >= 0; i--) {
+      this.writeBit((value >> i) & 1);
+    }
+  }
+
+  // Golomb-Rice unary: write `count` ones followed by a zero
+  writeUnary(count) {
+    for (let i = 0; i < count; i++) this.writeBit(1);
+    this.writeBit(0);
+  }
+
+  finish() {
+    if (this.bitPos > 0) {
+      this.bytes.push(this.current);
+    }
+    return Buffer.from(this.bytes);
+  }
+}
 
 function encodeGR(asns) {
   if (asns.length === 0) return "";
@@ -23,27 +46,27 @@ function encodeGR(asns) {
   const N = asns.length;
   const U = asns[N - 1] - asns[0] + 1;
   const k = 4;
-  const l = 0; // unused for GR
 
-  // Placeholder: store gaps as uint16 instead of bit-packed GR
-  const gaps = [];
-  gaps.push(asns[0] - OFFSET); // always 0
+  // Compute gaps (N-1 gaps between consecutive ASNs)
+  const bw = new BitWriter();
   for (let i = 1; i < N; i++) {
-    gaps.push(asns[i] - asns[i - 1]);
+    const g = asns[i] - asns[i - 1];
+    const q = g >> k;
+    const r = g & ((1 << k) - 1);
+    bw.writeUnary(q);
+    bw.writeBits(r, k);
   }
 
-  // Build header + gaps buffer
-  const payload = Buffer.alloc(gaps.length * 2);
-  for (let i = 0; i < gaps.length; i++) {
-    payload.writeUInt16LE(gaps[i], i * 2);
-  }
+  const payload = bw.finish();
+  const totalBits = (N - 1 === 0) ? 0 : (bw.bytes.length - (bw.bitPos > 0 ? 1 : 0)) * 8 + bw.bitPos;
 
+  // Common header
   const header = Buffer.alloc(14);
   header.writeUInt32LE(OFFSET, 0);
   header.writeUInt32LE(N, 4);
   header.writeUInt32LE(U, 8);
   header.writeUInt8(k, 12);
-  header.writeUInt8(l, 13);
+  header.writeUInt8(0, 13); // l = unused
 
   return Buffer.concat([header, payload]).toString("base64");
 }
