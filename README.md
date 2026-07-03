@@ -278,7 +278,7 @@ ASN classification is a strong signal, not an absolute judgment. Hosting ASNs oc
 
 ```js
 // Prefer classification over binary filtering
-const type = classifyASN(asn); // "hosting" | "consumer" | "unknown"
+const type = classifyASN(asn); // "hosting" | "access" | "unknown"
 // Use as a signal in your analytics pipeline, not as a hard firewall rule
 ```
 

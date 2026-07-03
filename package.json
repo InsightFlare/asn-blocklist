@@ -1,6 +1,6 @@
 {
   "name": "asn-blocklist",
-  "version": "1.20260703.1",
+  "version": "1.20260703.2",
   "description": "Auto-updated ASN blocklist and access-network list from PeeringDB",
   "type": "module",
   "main": "./lib/index.cjs",
@@ -105,8 +105,5 @@
   },
   "overrides": {
     "esbuild": "^0.28.1"
-  },
-  "dependencies": {
-    "asn-blocklist": "^1.20260703.0"
   }
 }

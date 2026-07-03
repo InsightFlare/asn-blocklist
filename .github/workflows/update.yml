@@ -4,13 +4,23 @@ on:
   schedule:
     - cron: "0 0 * * 0"
   workflow_dispatch:
+    inputs:
+      release_current:
+        description: "Publish the current package version without requiring data changes"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: auto-update
   cancel-in-progress: false
+
+env:
+  RELEASE_CURRENT: ${{ github.event_name == 'workflow_dispatch' && inputs.release_current }}
 
 jobs:
   build:
@@ -26,22 +36,32 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
 
       - name: Install dependencies
         run: npm ci
 
       - name: Generate PeeringDB data
+        if: env.RELEASE_CURRENT != 'true'
         run: npm run generate
 
       - name: Check generated data
         run: npm run check:data
 
       - name: Update README sizes
+        if: env.RELEASE_CURRENT != 'true'
         run: npm run update:sizes
 
       - name: Detect data changes
         id: changes
         run: |
+          if [ "$RELEASE_CURRENT" = "true" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Publishing current package version."
+            exit 0
+          fi
+
           if git diff --quiet -- dist README.md; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "No data changes detected."
@@ -50,7 +70,7 @@ jobs:
           fi
 
       - name: Compute package version
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.changed == 'true' && env.RELEASE_CURRENT != 'true'
         run: npm run set-version -- --date "$(date -u '+%Y%m%d')"
 
       - name: Generate npm data modules
@@ -67,7 +87,27 @@ jobs:
           VERSION="$(node -p "require('./package.json').version")"
           git config --local user.email "dr_hamilton@foxmail.com"
           git config --local user.name "Ravello-H"
-          git add -A
-          git commit -m "Release v${VERSION}"
-          git tag "v${VERSION}"
-          git push --follow-tags
+          if ! git diff --quiet; then
+            git add -A
+            git commit -m "Release v${VERSION}"
+            git push origin main
+          else
+            echo "No files changed; tagging current commit."
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/v${VERSION}" >/dev/null 2>&1; then
+            echo "Tag v${VERSION} already exists on origin; not pushing a new tag."
+          else
+            git tag -a "v${VERSION}" -m "v${VERSION}"
+            git push origin "v${VERSION}"
+          fi
+
+      - name: Publish to npm
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          PACKAGE="$(node -p "require('./package.json').name")"
+          VERSION="$(node -p "require('./package.json').version")"
+          if npm view "${PACKAGE}@${VERSION}" version >/dev/null 2>&1; then
+            echo "${PACKAGE}@${VERSION} already exists on npm; skipping publish."
+            exit 0
+          fi
+          npm publish --access public
