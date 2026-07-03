@@ -1,0 +1,10 @@
+{
+  "name": "asn-blocklist",
+  "version": "1.0.0",
+  "description": "Auto-updated ASN blocklist and access-network list from PeeringDB",
+  "private": true,
+  "scripts": {
+    "generate": "node src/index.js"
+  },
+  "license": "MIT"
+}
