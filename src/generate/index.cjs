@@ -117,10 +117,10 @@ async function main() {
 
   console.log(`Fetched ${networks.length} networks`);
 
-  const hosting = [];
-  const networkService = [];
-  const transit = [];
-  const access = [];
+  let hosting = [];
+  let networkService = [];
+  let transit = [];
+  let access = [];
 
   for (const net of networks) {
     const asn = net.asn;
