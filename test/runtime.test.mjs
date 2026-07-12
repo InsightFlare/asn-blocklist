@@ -135,7 +135,7 @@ test("default classification API uses EF datasets", () => {
   assert.equal(classifyASN(9808), "transit");
   assert.equal(classifyASN(4837), "transit");
   assert.equal(classifyASN(9009), "network_service");
-  assert.equal(classifyASN(62874), "network_service");
+  assert.equal(classifyASN(62874), "hosting");
   assert.equal(classifyASN(14061), "hosting");
 });
 
