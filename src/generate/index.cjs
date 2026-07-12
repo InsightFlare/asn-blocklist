@@ -110,6 +110,14 @@ async function main() {
     }
   }
 
+  // Deduplicate — PeeringDB may return multiple net entries for the same ASN
+  const dedup = (arr) => [...new Set(arr)];
+
+  hosting = dedup(hosting);
+  networkService = dedup(networkService);
+  transit = dedup(transit);
+  access = dedup(access);
+
   hosting.sort((a, b) => a - b);
   networkService.sort((a, b) => a - b);
   transit.sort((a, b) => a - b);
