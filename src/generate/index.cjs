@@ -5,6 +5,7 @@ const { encodeGR } = require("./gr-encode.cjs");
 const { encodeEF } = require("./ef-encode.cjs");
 
 const DIST = path.join(__dirname, "..", "..", "dist");
+const OVERRIDES = path.join(__dirname, "..", "overrides");
 
 const HOSTING_TYPES = new Set(["Content"]);
 const NETWORK_SERVICE_TYPES = new Set(["Network Services"]);
@@ -79,6 +80,31 @@ function classifyNetwork(net) {
   return "unknown";
 }
 
+function readOverrideASNs(filename) {
+  const file = path.join(OVERRIDES, filename);
+  if (!fs.existsSync(file)) return new Set();
+  return new Set(
+    fs.readFileSync(file, "utf8")
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => Number(line.replace(/^AS/i, ""))),
+  );
+}
+
+function applyOverrides(name, asns) {
+  const remove = readOverrideASNs(`${name}-remove.txt`);
+  const add = readOverrideASNs(`${name}-add.txt`);
+
+  const set = new Set(asns);
+  for (const asn of remove) set.delete(asn);
+  for (const asn of add) set.add(asn);
+
+  const result = [...set];
+  result.sort((a, b) => a - b);
+  return result;
+}
+
 function writeList(name, asns) {
   fs.writeFileSync(path.join(DIST, `${name}.txt`), asns.map((a) => `AS${a}`).join("\n") + "\n");
   fs.writeFileSync(path.join(DIST, `${name}.gr.b64`), encodeGR(asns));
@@ -110,18 +136,11 @@ async function main() {
     }
   }
 
-  // Deduplicate — PeeringDB may return multiple net entries for the same ASN
-  const dedup = (arr) => [...new Set(arr)];
-
-  hosting = dedup(hosting);
-  networkService = dedup(networkService);
-  transit = dedup(transit);
-  access = dedup(access);
-
-  hosting.sort((a, b) => a - b);
-  networkService.sort((a, b) => a - b);
-  transit.sort((a, b) => a - b);
-  access.sort((a, b) => a - b);
+  // Deduplicate and apply manual overrides
+  hosting = applyOverrides("hosting", hosting);
+  networkService = applyOverrides("network-service", networkService);
+  transit = applyOverrides("transit", transit);
+  access = applyOverrides("access", access);
 
   console.log(`Hosting:          ${hosting.length} ASNs`);
   console.log(`Network service:  ${networkService.length} ASNs`);
